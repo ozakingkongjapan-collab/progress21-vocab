@@ -22,6 +22,33 @@ button,input,select{font-size:16px;padding:10px}
 
 <main>
 <div class="card">
+  <p><b>使い方</b></p>
+  <ul>
+    <li>日本語を見て英語を答える</li>
+    <li>スペル重視（学校テスト対応）</li>
+    <li>「間違いだけ」で弱点周回できます</li>
+  </ul>
+
+  <label>出題対象：</label>
+  <select id="pool">
+    <option value="all">全部</option>
+    <option value="wrong">間違いだけ</option>
+  </select>
+
+  <label style="margin-left:10px;">出題数：</label>
+  <select id="limit">
+    <option value="20">20問</option>
+    <option value="38">全部（38）</option>
+  </select>
+
+  <button style="margin-left:10px;" onclick="start()">開始</button>
+  <button style="margin-left:8px;background:#fff;color:#111;border:1px solid #111;" onclick="resetLog()">ログ初期化</button>
+
+  <p style="color:#666;font-size:13px;margin-top:10px;">
+    ※「間違いだけ」は、過去に×が付いた単語（ミス履歴）だけを出します。まだミス履歴が無い場合は「全部」になります。
+  </p>
+</div>
+
 <p><b>使い方</b></p>
 <ul>
 <li>日本語を見て英語を答える</li>
@@ -29,6 +56,28 @@ button,input,select{font-size:16px;padding:10px}
 <li>間違えた単語は何度も出ます</li>
 </ul>
 <button onclick="start()">開始</button>
+</div>
+<div class="card" id="stats">
+  <p><b>学習ログ</b></p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap">
+    <div style="min-width:180px;">
+      <div style="color:#666;font-size:13px;">今日</div>
+      <div style="font-size:20px;"><span id="todayCnt">0</span>問（正答率 <span id="todayAcc">-</span>）</div>
+    </div>
+    <div style="min-width:180px;">
+      <div style="color:#666;font-size:13px;">直近7日</div>
+      <div style="font-size:20px;"><span id="weekCnt">0</span>問（正答率 <span id="weekAcc">-</span>）</div>
+    </div>
+    <div style="min-width:180px;">
+      <div style="color:#666;font-size:13px;">累計</div>
+      <div style="font-size:20px;"><span id="allCnt">0</span>問（正答率 <span id="allAcc">-</span>）</div>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;">
+    <div style="color:#666;font-size:13px;">苦手（×が多い順 上位5）</div>
+    <div id="weakList" style="margin-top:6px;"></div>
+  </div>
 </div>
 
 <div class="card" id="quiz" style="display:none">
@@ -42,68 +91,252 @@ button,input,select{font-size:16px;padding:10px}
 </main>
 
 <script>
-const words=[
-["are の過去形","were"],
-["am / is の過去形","was"],
-["ちょうど、まさに","just"],
-["〜の少し前に","just before"],
-["インターネット","the Internet"],
-["タイプする","type"],
-["作文","essay"],
-["そのとき","then"],
-["だれの〜","whose"],
-["ディスク","disc"],
-["〜の中の一つ","one of the"],
-["私のもの","mine"],
-["あなたのもの","yours"],
-["印刷する","print"],
-["ギター","guitar"],
-["彼のもの","his"],
-["私たちのもの","ours"],
-["彼らのもの","theirs"],
-["得る（過去 got）","get"],
-["賞","prize"],
-["１等賞","first prize"],
-["彼女のもの","hers"],
-["尋ねる","ask"],
-["一日中","all day"],
-["国","country"],
-["〜語を話す","speak"],
-["物語","story"],
-["詩","poem"],
-["書く（過去 wrote）","write"],
-["送る（過去 sent）","send"],
-["電子メール","e-mail"],
-["作る（過去 made）","make"],
-["大きい","large"],
-["両親","parents"],
-["たくさん","a lot"],
-["忘れる（過去 forgot）","forget"],
-["娘","daughter"],
-["息子","son"]
+/** ========= データ（Lesson12） ========= */
+const words = [
+  ["are の過去形","were"],
+  ["am / is の過去形","was"],
+  ["ちょうど、まさに","just"],
+  ["〜の少し前に","just before"],
+  ["インターネット","the Internet"],
+  ["タイプする","type"],
+  ["作文","essay"],
+  ["そのとき","then"],
+  ["だれの〜","whose"],
+  ["ディスク","disc"],
+  ["〜の中の一つ","one of the"],
+  ["私のもの","mine"],
+  ["あなたのもの","yours"],
+  ["印刷する","print"],
+  ["ギター","guitar"],
+  ["彼のもの","his"],
+  ["私たちのもの","ours"],
+  ["彼らのもの","theirs"],
+  ["得る（過去 got）","get"],
+  ["賞","prize"],
+  ["１等賞","first prize"],
+  ["彼女のもの","hers"],
+  ["尋ねる","ask"],
+  ["一日中","all day"],
+  ["国","country"],
+  ["〜語を話す","speak"],
+  ["物語","story"],
+  ["詩","poem"],
+  ["書く（過去 wrote）","write"],
+  ["送る（過去 sent）","send"],
+  ["電子メール","e-mail"],
+  ["作る（過去 made）","make"],
+  ["大きい","large"],
+  ["両親","parents"],
+  ["たくさん","a lot"],
+  ["忘れる（過去 forgot）","forget"],
+  ["娘","daughter"],
+  ["息子","son"]
 ];
 
-let i=0;
+/** ========= 永続ログ（localStorage） =========
+ * store = {
+ *   perWord: { "just": {ok:1, ng:2, last:"2026-01-12"} , ... },
+ *   daily:   { "2026-01-12": {ok:10, ng:5}, ... }
+ * }
+ */
+const LS_KEY = "p21_l12_store_v2";
+function loadStore(){
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || "") || null; }
+  catch(e){ return null; }
+}
+function initStore(){
+  return { perWord:{}, daily:{} };
+}
+let store = loadStore() || initStore();
+
+function saveStore(){
+  localStorage.setItem(LS_KEY, JSON.stringify(store));
+}
+
+function pad2(n){ return String(n).padStart(2,"0"); }
+function todayStr(){
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+}
+function norm(s){
+  return (s||"").trim().toLowerCase().replace(/\s+/g," ");
+}
+function markResult(answerEn, ok){
+  const key = norm(answerEn);
+  store.perWord[key] ||= { ok:0, ng:0, last:null };
+  if(ok) store.perWord[key].ok += 1;
+  else   store.perWord[key].ng += 1;
+  store.perWord[key].last = todayStr();
+
+  const t = todayStr();
+  store.daily[t] ||= { ok:0, ng:0 };
+  if(ok) store.daily[t].ok += 1;
+  else   store.daily[t].ng += 1;
+
+  saveStore();
+  renderStats();
+}
+
+/** ========= 出題キュー ========= */
+let queue = [];
+let idx = 0;
+
+function buildQueue(){
+  const poolMode = document.getElementById("pool").value;   // all / wrong
+  const limit = parseInt(document.getElementById("limit").value, 10);
+
+  let base = words.slice();
+
+  if(poolMode === "wrong"){
+    // 「間違いだけ」＝過去に×が付いたものを優先
+    const wrongOnly = base.filter(([jp,en])=>{
+      const st = store.perWord[norm(en)];
+      return st && st.ng > 0; // ミス履歴があるもの
+    });
+
+    // ミス履歴が0なら「全部」にフォールバック（空で困らないため）
+    base = wrongOnly.length ? wrongOnly : base;
+  }
+
+  // シャッフル
+  for(let i=base.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [base[i],base[j]] = [base[j],base[i]];
+  }
+
+  // 出題数（20 or 全部）
+  return base.slice(0, Math.min(limit, base.length));
+}
+
+/** ========= UI ========= */
 function start(){
-i=0;
-document.getElementById("quiz").style.display="block";
-show();
+  queue = buildQueue();
+  idx = 0;
+
+  document.getElementById("quiz").style.display = "block";
+  show();
 }
+
 function show(){
-document.getElementById("count").innerText=(i+1)+" / "+words.length;
-document.getElementById("q").innerText=words[i][0];
-document.getElementById("a").value="";
-document.getElementById("r").innerText="";
+  const [jp,en] = queue[idx];
+
+  document.getElementById("count").innerText = `${idx+1} / ${queue.length}`;
+  document.getElementById("q").innerText = jp;
+
+  const a = document.getElementById("a");
+  a.value = "";
+  a.focus();
+
+  document.getElementById("r").innerText = "";
 }
+
 function check(){
-const ans=document.getElementById("a").value.trim().toLowerCase();
-const cor=words[i][1].toLowerCase();
-document.getElementById("r").innerText=
-ans===cor?"○ 正解":"× 正解："+words[i][1];
-i++;
-if(i<words.length)setTimeout(show,800);
+  const [jp,en] = queue[idx];
+  const ans = norm(document.getElementById("a").value);
+  const cor = norm(en);
+
+  const ok = (ans === cor);
+
+  document.getElementById("r").innerText =
+    ok ? "○ 正解" : `× 正解：${en}`;
+
+  // ログ記録（ここが今回の追加ポイント）
+  markResult(en, ok);
+
+  idx++;
+  if(idx < queue.length){
+    setTimeout(show, 650);
+  }else{
+    setTimeout(()=>{
+      document.getElementById("r").innerText += "　— 終了";
+    }, 200);
+  }
 }
+
+function resetLog(){
+  if(!confirm("学習ログ（今日/週/累計・間違い履歴）をすべて消します。よろしいですか？")) return;
+  localStorage.removeItem(LS_KEY);
+  store = initStore();
+  renderStats();
+}
+
+/** ========= 統計表示（今日/週/累計/苦手） ========= */
+function sumDaily(fromDateStr){
+  // fromDateStr 以降を合算（YYYY-MM-DD）
+  let ok=0, ng=0;
+  for(const [d, v] of Object.entries(store.daily)){
+    if(d >= fromDateStr){
+      ok += v.ok || 0;
+      ng += v.ng || 0;
+    }
+  }
+  return {ok, ng, all: ok+ng};
+}
+function dateNDaysAgo(n){
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+}
+function accText(ok, all){
+  return all ? `${Math.round((ok/all)*100)}%` : "-";
+}
+function renderStats(){
+  // 今日
+  const t = todayStr();
+  const today = store.daily[t] || {ok:0, ng:0};
+  const todayAll = (today.ok||0) + (today.ng||0);
+  document.getElementById("todayCnt").innerText = todayAll;
+  document.getElementById("todayAcc").innerText = accText(today.ok||0, todayAll);
+
+  // 直近7日（今日含む）
+  const from = dateNDaysAgo(6);
+  const week = sumDaily(from);
+  document.getElementById("weekCnt").innerText = week.all;
+  document.getElementById("weekAcc").innerText = accText(week.ok, week.all);
+
+  // 累計
+  let allOk=0, allNg=0;
+  for(const v of Object.values(store.daily)){
+    allOk += v.ok || 0;
+    allNg += v.ng || 0;
+  }
+  const allAll = allOk + allNg;
+  document.getElementById("allCnt").innerText = allAll;
+  document.getElementById("allAcc").innerText = accText(allOk, allAll);
+
+  // 苦手上位（×が多い順）
+  const ranked = Object.entries(store.perWord)
+    .map(([en, st]) => ({en, ng: st.ng||0, ok: st.ok||0}))
+    .filter(x => x.ng > 0)
+    .sort((a,b)=> (b.ng - a.ng) || (a.ok - b.ok))
+    .slice(0,5);
+
+  const w = document.getElementById("weakList");
+  w.innerHTML = "";
+  if(!ranked.length){
+    w.innerText = "（まだありません）";
+  }else{
+    ranked.forEach(x=>{
+      const div = document.createElement("div");
+      div.innerText = `${x.en}（×${x.ng} / ○${x.ok}）`;
+      w.appendChild(div);
+    });
+  }
+}
+
+// 初期描画
+renderStats();
+
+// Enterで判定
+document.addEventListener("keydown", (e)=>{
+  if(e.key === "Enter"){
+    const quizVisible = document.getElementById("quiz").style.display !== "none";
+    if(quizVisible) check();
+  }
+});
 </script>
+
 
 </body>
 </html>
+
