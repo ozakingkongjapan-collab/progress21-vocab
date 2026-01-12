@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Progress21 単語アプリ（Jr.1 / Lesson 12）</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Meiryo",sans-serif;background:#f6f7f9;margin:0}
+header{background:#fff;padding:12px;border-bottom:1px solid #ddd}
+main{max-width:720px;margin:auto;padding:16px}
+.card{background:#fff;border-radius:12px;padding:16px;margin-bottom:14px}
+button,input,select{font-size:16px;padding:10px}
+.q{font-size:20px;margin:10px 0}
+</style>
+</head>
+<body>
+
+<header>
+<h2>Progress21 単語アプリ（Lesson 12）</h2>
+<p>テスト日：1/14</p>
+</header>
+
+<main>
+<div class="card">
+<p><b>使い方</b></p>
+<ul>
+<li>日本語を見て英語を答える</li>
+<li>スペル重視（学校テスト対応）</li>
+<li>間違えた単語は何度も出ます</li>
+</ul>
+<button onclick="start()">開始</button>
+</div>
+
+<div class="card" id="quiz" style="display:none">
+<div id="count"></div>
+<div class="q" id="q"></div>
+<input id="a" placeholder="英語で入力">
+<br><br>
+<button onclick="check()">判定</button>
+<p id="r"></p>
+</div>
+</main>
+
+<script>
+const words=[
+["are の過去形","were"],
+["am / is の過去形","was"],
+["ちょうど、まさに","just"],
+["〜の少し前に","just before"],
+["インターネット","the Internet"],
+["タイプする","type"],
+["作文","essay"],
+["そのとき","then"],
+["だれの〜","whose"],
+["ディスク","disc"],
+["〜の中の一つ","one of the"],
+["私のもの","mine"],
+["あなたのもの","yours"],
+["印刷する","print"],
+["ギター","guitar"],
+["彼のもの","his"],
+["私たちのもの","ours"],
+["彼らのもの","theirs"],
+["得る（過去 got）","get"],
+["賞","prize"],
+["１等賞","first prize"],
+["彼女のもの","hers"],
+["尋ねる","ask"],
+["一日中","all day"],
+["国","country"],
+["〜語を話す","speak"],
+["物語","story"],
+["詩","poem"],
+["書く（過去 wrote）","write"],
+["送る（過去 sent）","send"],
+["電子メール","e-mail"],
+["作る（過去 made）","make"],
+["大きい","large"],
+["両親","parents"],
+["たくさん","a lot"],
+["忘れる（過去 forgot）","forget"],
+["娘","daughter"],
+["息子","son"]
+];
+
+let i=0;
+function start(){
+i=0;
+document.getElementById("quiz").style.display="block";
+show();
+}
+function show(){
+document.getElementById("count").innerText=(i+1)+" / "+words.length;
+document.getElementById("q").innerText=words[i][0];
+document.getElementById("a").value="";
+document.getElementById("r").innerText="";
+}
+function check(){
+const ans=document.getElementById("a").value.trim().toLowerCase();
+const cor=words[i][1].toLowerCase();
+document.getElementById("r").innerText=
+ans===cor?"○ 正解":"× 正解："+words[i][1];
+i++;
+if(i<words.length)setTimeout(show,800);
+}
+</script>
+
+</body>
+</html>
