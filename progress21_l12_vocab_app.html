@@ -113,7 +113,6 @@
       </div>
       <div class="row" style="margin-top:12px;">
         <button class="btn primary" id="startBtn">開始</button>
-        <button class="btn" id="nextBtn" disabled>次へ</button>
         <button class="btn danger" id="resetBtn">ログ初期化</button>
       </div>
       <div class="footer-note">
@@ -153,6 +152,12 @@
         </div>
 
         <div class="result" id="r"></div>
+
+        <div class="row" style="margin-top:12px; gap:10px;">
+          <button class="btn success" id="checkBtn" type="button">判定</button>
+          <button class="btn primary" id="nextBtn" type="button" disabled>次へ</button>
+        </div>
+
       </div>
       <div class="footer-note" id="quizNote">開始を押すとここに表示されます。</div>
     </div>
@@ -312,8 +317,19 @@ function start()
   document.getElementById('quiz').style.display = queue.length ? 'block' : 'none';
   document.getElementById('quizNote').innerText = queue.length ? '' : '出題がありません（間違い履歴が無い場合は「全部」にしてください）。';
 
+  setActionButtons();
   document.getElementById('nextBtn').disabled=true;
   if(queue.length) show();
+}
+
+function setActionButtons(){
+  const mode=document.getElementById('mode').value;
+  const checkBtn=document.getElementById('checkBtn');
+  const nextBtn=document.getElementById('nextBtn');
+  // 判定ボタンは入力系のみ表示（4択は各選択ボタンで回答）
+  checkBtn.style.display = (mode==='mc') ? 'none' : 'inline-block';
+  // 次へはクイズ中だけ表示
+  nextBtn.style.display = 'inline-block';
 }
 
 function show(){
@@ -325,22 +341,29 @@ function show(){
   document.getElementById('r').innerText = '';
   document.getElementById('r').className='result';
   phase='answer';
+  setActionButtons();
   document.getElementById('nextBtn').disabled=true;
 
   // switch UI
   document.getElementById('answerArea').style.display = (mode==='mc') ? 'none' : 'block';
   document.getElementById('mcArea').style.display = (mode==='mc') ? 'block' : 'none';
+  // in-quiz buttons
+  document.getElementById('checkBtn').disabled = (mode==='mc');
+  document.getElementById('nextBtn').disabled = true;
+
 
   if(mode==='jp2en'){
     document.getElementById('q').innerText = item.jp || '—';
     const a=document.getElementById('a');
     a.value=''; a.placeholder='英語で入力（Enterで判定）';
     a.focus();
+    document.getElementById('checkBtn').disabled=false;
   }else if(mode==='en2jp'){
     document.getElementById('q').innerText = item.en || '—';
     const a=document.getElementById('a');
     a.value=''; a.placeholder='日本語で入力（Enterで判定）';
     a.focus();
+    document.getElementById('checkBtn').disabled=false;
   }else{
     // multiple choice: prompt Japanese, choose English
     document.getElementById('q').innerText = item.jp || '—';
@@ -354,6 +377,7 @@ function show(){
       b.onclick = ()=>checkMC(opt.en);
       wrap.appendChild(b);
     });
+    document.getElementById('checkBtn').disabled=true;
   }
 }
 
@@ -404,6 +428,7 @@ function checkText(){
   markResult(item, ok);
   lastCorrect=ok;
   document.getElementById('nextBtn').disabled=false;
+  document.getElementById('checkBtn').disabled=true;
   phase='next';
   // 次へにフォーカス（PC）
   try{ document.getElementById('nextBtn').focus(); }catch(e){}
@@ -416,6 +441,7 @@ function checkMC(chosenEn){
   markResult(item, ok);
   lastCorrect=ok;
   document.getElementById('nextBtn').disabled=false;
+  document.getElementById('checkBtn').disabled=true;
   phase='next';
   try{ document.getElementById('nextBtn').focus(); }catch(e){}
 }
@@ -433,6 +459,7 @@ function showResult(item, ok){
 function next(){
   if(!queue.length) return;
   idx++;
+  setActionButtons();
   document.getElementById('nextBtn').disabled=true;
   if(idx < queue.length){
     show();
@@ -535,6 +562,12 @@ function renderStats(){
 
 // ====== Events ======
 document.getElementById('startBtn').addEventListener('click', start);
+document.getElementById('checkBtn').addEventListener('click', ()=>{
+  if(phase==='answer'){
+    const mode=document.getElementById('mode').value;
+    if(mode!=='mc') checkText();
+  }
+});
 document.getElementById('nextBtn').addEventListener('click', next);
 document.getElementById('resetBtn').addEventListener('click', resetLog);
 
