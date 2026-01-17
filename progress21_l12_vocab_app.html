@@ -33,8 +33,10 @@
   button.chip{ all:unset; cursor:pointer; display:inline-flex; align-items:center; }
   .chip{ display:flex; align-items:center; justify-content:center; gap:6px; padding:10px 8px; border-radius:14px; border:1px solid var(--border); background:rgba(15,23,42,0.8); cursor:pointer; user-select:none; }
   .chip input{ display:none; }
-  .chip.on{ border-color:rgba(96,165,250,0.55); background:rgba(96,165,250,0.16); }
+  .chip.on{ border-color:var(--accent); background:linear-gradient(180deg, rgba(96,165,250,0.75), rgba(96,165,250,0.28)); box-shadow:0 0 0 2px rgba(96,165,250,0.42), 0 12px 28px rgba(96,165,250,0.22); }
   .chip span{ font-weight:800; }
+  .chip.on span{ color:#fff; }
+  .chip.on::after{ content:"✓"; font-weight:900; color:#fff; opacity:0.98; margin-left:6px; }
   .muted{ color:var(--muted); }
   .stat{ display:flex; gap:12px; flex-wrap:wrap; }
   .stat .box{ min-width:160px; padding:12px; border-radius:16px; border:1px solid var(--border); background:rgba(15,23,42,0.6); }
@@ -217,11 +219,6 @@ function buildLessonGrid(){
 
     chip.addEventListener('click',()=>{
       input.checked = !input.checked;
-      // Keep at least one selected
-      const checked=[...document.querySelectorAll('#lessonGrid .chip input:checked')];
-      if(checked.length===0){
-        input.checked = true;
-      }
       refreshSelectionUI();
     });
 
@@ -229,10 +226,6 @@ function buildLessonGrid(){
 
     grid.appendChild(chip);
   });
-
-  // default selection: L12 if exists, otherwise L01
-  const def = grid.querySelector(".chip input[value='L12']") || grid.querySelector(".chip input[value='L01']") || grid.querySelector('.chip input');
-  if(def) def.checked = true;
 
   refreshSelectionUI();
 }
@@ -245,10 +238,10 @@ function refreshSelectionUI(){
     ch.classList.toggle('on', on);
   });
   const sum=selectionSummary(ids);
-  document.getElementById('selSummary').innerText=sum;
+  document.getElementById('selSummary').innerText = ids.length ? sum : '（Lessonを選択してください）';
   // info
   const total=ids.reduce((acc,id)=>acc + (LESSONS[id]?.length||0),0);
-  document.getElementById('lessonInfo').innerText=`単語数: ${total}`;
+  document.getElementById('lessonInfo').innerText = ids.length ? `単語数: ${total}` : 'Lesson未選択';
   renderStats();
 }
 
@@ -258,9 +251,6 @@ document.getElementById('allOn').addEventListener('click',()=>{
 });
 document.getElementById('allOff').addEventListener('click',()=>{
   document.querySelectorAll('.chip input').forEach(x=>x.checked=false);
-  // keep at least one: L12 if any else first
-  const any=document.querySelector('.chip input');
-  if(any) any.checked=true;
   refreshSelectionUI();
 });
 
@@ -296,8 +286,13 @@ function shuffle(a){
   }
 }
 
-function start(){
+function start()
+{
   const ids=selectedLessons();
+  if(!ids.length){
+    alert('まず学習するLessonを選んでください。');
+    return;
+  }
   const poolMode=document.getElementById('pool').value; // all/wrong
   const limit=parseInt(document.getElementById('limit').value,10);
 
