@@ -189,21 +189,42 @@ function selectionSummary(ids){
 
 // ====== UI build ======
 function buildLessonGrid(){
-  const grid=document.getElementById('lessonGrid');
-  grid.innerHTML='';
-  const keys=Object.keys(LESSONS).sort();
+  const grid = document.getElementById('lessonGrid');
+  grid.innerHTML = '';
+
+  const keys = Object.keys(LESSONS).sort();
+
   keys.forEach(k=>{
-    const n=k.slice(1);
-    const label=`L${n}`;
-    const div=document.createElement('label');
-    div.className='chip';
-    div.innerHTML=`<input type="checkbox" value="${k}" ${k==='L12' ? '' : ''}><span>${label}</span>`;
-    div.addEventListener('click',(e)=>{
-      if(e.target.tagName!=='INPUT'){
-        const input=div.querySelector('input');
-        input.checked = !input.checked;
-      }
-      refreshSelectionUI();
+    const n = k.slice(1);
+    const labelText = `L${n}`;
+
+    const label = document.createElement('label');
+    label.className = 'chip';
+
+    // ここでは「labelクリックで自動トグル」に任せる（手動トグルしない）
+    label.innerHTML = `<input type="checkbox" value="${k}"><span>${labelText}</span>`;
+
+    const input = label.querySelector('input');
+    input.addEventListener('change', refreshSelectionUI);
+
+    grid.appendChild(label);
+  });
+
+  // default selection: L12 (なければL01)
+  const def = ['L12'];
+  let any = false;
+  def.forEach(k=>{
+    const el = [...grid.querySelectorAll('input')].find(x=>x.value===k);
+    if(el){ el.checked = true; any = true; }
+  });
+  if(!any){
+    const first = [...grid.querySelectorAll('input')].find(x=>x.value==='L01');
+    if(first) first.checked = true;
+  }
+
+  refreshSelectionUI();
+}
+
     });
     grid.appendChild(div);
   });
@@ -516,3 +537,4 @@ renderStats();
 </script>
 </body>
 </html>
+
