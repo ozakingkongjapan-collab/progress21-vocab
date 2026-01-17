@@ -72,6 +72,7 @@
       <div class="row" style="margin-bottom:10px;">
         <button class="btn" id="allOn">全選択</button>
         <button class="btn" id="allOff">全解除</button>
+        <div id="lessonGrid" class="lesson-grid"></div>
         <span class="muted" id="lessonInfo"></span>
       </div>
       <div class="lesson-grid" id="lessonGrid"></div>
@@ -446,75 +447,83 @@ function resetLog(){
   renderStats();
 }
 
-// ====== Stats (selected lessons) ======
-function accText(ok, all){ return all ? `${Math.round(ok/all*100)}%` : '-'; }
-function dateNDaysAgo(n){ const d=new Date(); d.setDate(d.getDate()-n); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
-
-function sumForLessons(fromDateStr, ids){
-  let ok=0, ng=0;
-  const daily=store.dailyByLesson || {};
-  for(const [date, obj] of Object.entries(daily)){
-    if(date >= fromDateStr){
-      ids.forEach(id=>{
-        const v=obj[id];
-        if(v){ ok += v.ok||0; ng += v.ng||0; }
-      });
-    }
-  }
-  return {ok, ng, all: ok+ng};
-}
-
-function sumAllLessons(fromDateStr){
-  let ok=0, ng=0;
-  for(const [date, v] of Object.entries(store.daily||{})){
-    if(date >= fromDateStr){ ok += v.ok||0; ng += v.ng||0; }
-  }
-  return {ok, ng, all: ok+ng};
-}
-
-function renderStats(){
-  const ids=selectedLessons();
-  const t=todayStr();
-  const todayObj = (store.dailyByLesson[t] || {});
-  let todayOk=0, todayNg=0;
-  ids.forEach(id=>{
-    const v=todayObj[id];
-    if(v){ todayOk += v.ok||0; todayNg += v.ng||0; }
+// ===== Lesson selection (robust for iOS Safari) =====
+function refreshSelectionUI(){
+  const inputs = document.querySelectorAll('#lessonGrid input[type="checkbox"]');
+  inputs.forEach(inp=>{
+    const chip = inp.closest('.chip');
+    if(!chip) return;
+    if(inp.checked) chip.classList.add('on');
+    else chip.classList.remove('on');
   });
-  const todayAll=todayOk+todayNg;
-  document.getElementById('todayCnt').innerText=todayAll;
-  document.getElementById('todayAcc').innerText=accText(todayOk, todayAll);
-  document.getElementById('todayMini').innerText=todayAll;
-
-  const from = dateNDaysAgo(6);
-  const week = sumForLessons(from, ids);
-  document.getElementById('weekCnt').innerText=week.all;
-  document.getElementById('weekAcc').innerText=accText(week.ok, week.all);
-
-  // all-time for selected: sum all dates
-  const selAll = sumForLessons('0000-00-00', ids);
-  document.getElementById('allCnt').innerText=selAll.all;
-  document.getElementById('allAcc').innerText=accText(selAll.ok, selAll.all);
-
-  // weaknesses: perWord entries for selected lessons
-  const ranked = Object.entries(store.perWord||{})
-    .map(([key, st])=>({key, st}))
-    .filter(x => ids.includes(x.st.lesson) && (x.st.ng||0) > 0)
-    .sort((a,b)=> (b.st.ng - a.st.ng) || (a.st.ok - b.st.ok))
-    .slice(0,8);
-
-  const w=document.getElementById('weakList');
-  w.innerHTML='';
-  if(!ranked.length){
-    w.innerHTML = '<div class="muted">（まだありません）</div>';
-  }else{
-    ranked.forEach(x=>{
-      const div=document.createElement('div');
-      div.innerText = `${x.st.lesson}  ${x.st.en}（×${x.st.ng} / ○${x.st.ok}）`;
-      w.appendChild(div);
-    });
-  }
 }
+
+function getSelectedLessons(){
+  return [...document.querySelectorAll('#lessonGrid input[type="checkbox"]')]
+    .filter(x=>x.checked)
+    .map(x=>x.value);
+}
+
+function selectAllLessons(){
+  document.querySelectorAll('#lessonGrid input[type="checkbox"]').forEach(x=>x.checked = true);
+  refreshSelectionUI();
+}
+
+function clearAllLessons(){
+  document.querySelectorAll('#lessonGrid input[type="checkbox"]').forEach(x=>x.checked = false);
+  refreshSelectionUI();
+}
+
+function buildLessonGrid(){
+  const grid = document.getElementById('lessonGrid');
+  if(!grid) return; // 箱が無いときは何もしない
+  grid.innerHTML = '';
+
+  const keys = Object.keys(LESSONS).sort(); // LESSONS は既存のデータ辞書
+
+  keys.forEach(k=>{
+    const n = k.slice(1);
+    const label = document.createElement('button');
+    label.type = 'button';
+    label.className = 'chip';
+    label.textContent = `L${n}`;
+    label.dataset.lesson = k;
+
+    // iOS Safariでも確実に動く：ボタンで自前トグル
+    label.addEventListener('click', ()=>{
+      const hidden = label.querySelector('input');
+      hidden.checked = !hidden.checked;
+      refreshSelectionUI();
+    });
+
+    // hidden checkbox（状態保持用）
+    const hidden = document.createElement('input');
+    hidden.type = 'checkbox';
+    hidden.value = k;
+    hidden.style.display = 'none';
+    hidden.addEventListener('change', refreshSelectionUI);
+    label.appendChild(hidden);
+
+    grid.appendChild(label);
+  });
+
+  // default: L12 (なければL01)
+  const inputs = [...document.querySelectorAll('#lessonGrid input[type="checkbox"]')];
+  const def = inputs.find(x=>x.value === 'L12') || inputs.find(x=>x.value === 'L01');
+  if(def) def.checked = true;
+
+  refreshSelectionUI();
+}
+
+// DOMができてから必ず描画
+document.addEventListener('DOMContentLoaded', ()=>{
+  buildLessonGrid();
+});
+
+// 既存の「全選択／全解除」ボタンのonclickは、必ずこれに繋ぐ
+// 例：document.getElementById('selectAllBtn').onclick = selectAllLessons;
+//     document.getElementById('clearAllBtn').onclick = clearAllLessons;
+
 
 // ====== Events ======
 document.getElementById('startBtn').addEventListener('click', start);
@@ -537,4 +546,5 @@ renderStats();
 </script>
 </body>
 </html>
+
 
